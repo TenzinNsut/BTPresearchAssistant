@@ -1,0 +1,287 @@
+/* -----------F O N T S------------ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Oswald:wght@200..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap');
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,body{
+    width: 100%;
+    height: 100%;
+
+    background-color: #202125;
+    /* background-color: #000000; */
+}
+
+nav{
+    width: 100%;
+    height: 10vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+   
+
+    border-bottom: 0.1vw solid #b1b1b5;
+    
+}
+
+
+#nav-container{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+
+
+nav h5 a{
+    padding: 0vw 3vw;
+
+    font-family: "Noto Sans", sans-serif;
+    font-optical-sizing: auto;
+    text-decoration: none;
+    color: #aaaaac;
+
+    font-size: 1.1vw;
+    font-weight: 300;
+    transition: all 0.2s ease;
+
+    text-transform: uppercase;
+}
+
+
+nav h5 a:hover{
+    color: white;
+    font-size: 1.2vw;
+    margin: 0vw 1vw;
+    
+}
+
+#star{ 
+    font-size: 1.3vw;
+
+    animation-name: rotation;
+    animation-duration: 6s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-fill-mode: forwards;
+}
+
+
+@keyframes rotation {
+    from{
+        rotate: 0deg;
+    }
+    to{
+        rotate: 360deg;
+    }
+    
+}
+
+
+section{
+    padding: 3vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    width: 100%;
+    height: 90vh;
+    /* background-color: red; */
+    
+}
+
+section #container{
+    width: 50vw;
+    height: 80vh;
+    /* border: 2px solid white; */
+    padding: 2vw 3vw;
+
+    border-radius: 2%;
+
+    font-family: "Noto Sans", sans-serif;
+
+}
+
+section #container h3{
+    font-weight: 800;
+    font-size: 2.5vw;
+    color: white;
+}
+#messageFormeight{
+    /* background-color: green; */
+    width: 100%;
+    height: 58vh;
+    overflow-y: auto;
+}
+
+#Query{
+    display: flex;
+    justify-content: flex-end;
+    background-color: #1b1b23;
+    color: white;
+
+    
+    padding: 0.5vw 3vw;
+    border-radius: 5px;
+
+    margin: 0.5vw 0vw;
+    
+    font-size: 1vw;
+    word-spacing: 0;
+    letter-spacing: normal;
+
+}
+
+
+#Response{
+    display: flex;
+    justify-content: flex-start;
+    background-color: transparent;
+    color: white;
+
+
+     
+    padding: 0.5vw 3vw;
+    border-radius: 5px;
+
+    margin: 0.5vw 0vw;
+    
+    font-size: 1vw;
+    word-spacing: 0;
+    letter-spacing: normal;
+
+}
+
+
+#messageArea{
+    display: flex;
+    width: 100%;
+    background-color: #272731;
+    
+    border-radius: 10px;
+
+}
+#messageArea input{
+    background-color: #272731;
+    width: 100%;
+
+    color: rgb(255, 255, 255);
+    border: none;
+    padding: 0.5vw 2vw;
+
+    border-radius: 5px;
+    outline: none;
+}
+
+#messageArea button{
+    background-color: transparent;
+    border: none;
+
+    border-left: 1px solid rgb(172, 172, 172);
+
+    border-top-right-radius:5px ;
+    border-bottom-right-radius:5px ;
+    
+}
+
+
+#messageArea button i{
+    padding: 1vw 1.5vw;
+    font-size: 1vw;
+    background-color: none;
+    color: white;
+}
+
+#messageArea button:hover{
+    background-color: rgb(80, 79, 79);   
+}
+
+#messageArea button:focus{
+    background-color: rgb(80, 79, 79);   
+}
+
+
+
+@media (max-width:600px){
+    #star{
+        /* display: none; */
+        font-size: 4vw;
+    }
+
+    nav{
+        height: 8vh;
+    }
+
+    nav h5 a{
+        font-size: 3.8vw; 
+    }
+
+    nav h5 a:focus{
+        color: white;
+        font-size: 4vw;
+        margin: 0vw 1vw;
+    }  
+    
+    section{
+        padding: 2vw;    
+    }
+
+
+    section #container h3{
+        font-size: 4.5vw;
+        text-align: center;
+        margin-bottom: 2vw;
+    }
+    
+    section #container{
+        width: 90vw;
+        height: 80vh;
+    }
+
+
+
+    #messageFormeight{
+        /* background-color: green; */
+        width: 100%;
+        height: 70vh;
+        overflow-y: auto;
+    }
+
+    #Query{
+        
+        padding: 3vw 3vw;    
+        margin: 1vw 0vw;
+        font-size: 3.5vw;
+
+    
+    }
+
+    #Response{
+        background-color: transparent;  
+        padding: 3vw 3vw;    
+        margin: 1vw 0vw;
+        font-size: 3.5vw;    
+    }
+
+    #messageArea input{
+        padding: 5vw 5vw;
+    
+    }
+    
+    #messageArea button i{
+        padding: 1.5vw 4.5vw;
+        font-size: 4vw;
+        background-color: none;
+        color: white;
+    }
+
+    
+    
+    
+
+}
