@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='homeStyle.css')}}">
+    <title>LMAO</title>
+</head>
+<body>
+   
+    <main>
+        <nav>
+            <div id="star">⭐</div>
+            <div id="nav-container">
+                <h5><a href="{{url_for('index')}}">Home </a></h5>
+                <h5><a href="">About</a></h5>
+                <h5><a href="">FAQs</a></h5>
+                <h5><a href="">Contact Us</a></h5> 
+            </div>
+        </nav>
+
+        <section>
+            <div id="left">
+                <div id="left-content-container">
+                    <h1>Transforming Research Exploration, One Query at a Time.</h1>
+                    <div id="left-content-container-data">
+                        <p>Access scientific knowledge with ease through an intelligent research assistant. Powered by AI-driven models and open-source technologies, the system provides accurate and relevant answers from an extensive repository of research papers.</p>
+                        <h3>Why Select Our Platform?</h3>
+                        <div id="points">
+                            <p>🔍 <b>Effortless Search:</b>  Access vast collection of relevant research papers with ease.</p>
+                            <p>🤖 <b>AI-Enhanced Insights:</b> Get accurate and refined answers powered by AI models.</p>
+                            <p>🔗 <b>Citations You Can Trust:</b> Get citations for every answer for reliable referencing.</p>
+                        </div> 
+                    </div>
+                </div>
+
+              
+            </div>
+            <div id="right">
+                <img src="https://kstatic.googleusercontent.com/files/202018a3b69e60845af5a9903c7bf87010a2e2e8d987bd0fef5a598c0ee2b4345721a4c549a4a8039ff3a3dfd85239de3d6735b9956ff60f525b72e36c377164" alt="">
+            </div>
+
+            <div id="float">
+                <p>Enhance your research journey by transforming questions into insights.</p>
+                <a href="{{ url_for('chat_page') }}">Start Exploring Today!</a>
+            </div>
+          
+        </section>
+
+
+
+    </main>
+    
+</body>
+</html>

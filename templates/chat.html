@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
-	<link rel="stylesheet" type="text/css" href="styles.css"/>
+	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css')}}"/>
 	<title>🤖 L M A O</title>
 
   <style>
@@ -53,63 +53,34 @@
 
 
   <script>
-    const fetchBtn = document.getElementById('fetchBtn');
-    const urlInput = document.getElementById('url');
-    const chatpage = document.getElementById('container')
-    const inputSection = document.getElementById('inputSection');
+   const fetchBtn = document.getElementById('fetchBtn');
+        const urlInput = document.getElementById('url');
+        const chatpage = document.getElementById('container');
+        const inputSection = document.getElementById('inputSection');
 
-    let content = '';
+        const isValidResearchURL = (url) => {
+            const researchDomains = ['arxiv.org', 'ieeexplore.ieee.org', 'sciencedirect.com'];
+            return researchDomains.some(domain => url.includes(domain));
+        };
 
-    const isValidResearchURL = (url) => {
-    const researchDomains = ['arxiv.org', 'springer.com', 'nature.com', 'sciencedirect.com'];
-    return researchDomains.some(domain => url.includes(domain));
-    };
+        fetchBtn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            if (!isValidResearchURL(url)) {
+                chatpage.classList.add('hidden');
+                alert('Please enter a valid research paper domain URL.');
+                return;
+            }
 
+            // Send the URL to the Flask app
+            await fetch('/process_url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: url })
+            });
 
-    
-const fetchTextFromURL = async (url) => {
-  try {
-    const response = await fetch(url);
-    const text = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, 'text/html');
-    return doc.body.innerText;
-  } catch (error) {
-    console.error('Error fetching URL:', error);
-    alert('Failed to fetch content. Please check the URL.');
-    return '';
-  }
-};
-
-const sendToRAGModel = async (query) => {
-  try {
-    const response = await fetch('https://example.com/rag-model-endpoint', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, query }),
-    });
-    const data = await response.json();
-    return data.result;
-  } catch (error) {
-    console.error('Error communicating with RAG model:', error);
-    alert('Failed to get a response from the model.');
-    return 'Error: Unable to process query.';
-  }
-};
-
-fetchBtn.addEventListener('click', async () => {
-  const url = urlInput.value.trim();
-  if (!isValidResearchURL(url)) {
-    chatpage.classList.add('hidden');
-    alert('Please enter a valid research paper domain URL.');
-    return;
-  }
-  content = await fetchTextFromURL(url);
-  if (content) {
-    inputSection.classList.add('hidden');
-    chatpage.classList.remove('hidden');
-  }
-});
+            inputSection.classList.add('hidden');
+            chatpage.classList.remove('hidden');
+        });
   </script>
 
   
@@ -118,6 +89,7 @@ fetchBtn.addEventListener('click', async () => {
       $("#messageArea").on("submit", function(event) {
 
         var rawText = $("#text").val();
+        var rawUrl = $("#url").val();
 
         var userHtml = '<div id="Query">' + rawText + '</div>';
 
@@ -127,6 +99,7 @@ fetchBtn.addEventListener('click', async () => {
         $.ajax({
           data: {
             msg: rawText,
+            url: rawUrl,
           },
           type: "POST",
           url: "/get",
