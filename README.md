@@ -56,7 +56,6 @@ This project provides a system to retrieve and analyze research papers effective
 ## Technologies Used
 - **Programming Language**: Python
 - **Web Framework**: Flask
-- **NLP Libraries**: Hugging Face Transformers, Sentence-BERT
 - **Web Scraping**: Beautiful Soup, Selenium
 - **Vector Search**: FAISS (Facebook AI Similarity Search)
 - **Model Architecture**: Speculative Retrieval-Augmented Generation (RAG)
