@@ -1,5 +1,10 @@
 # Research Paper Insights Generator
 
+https://github.com/user-attachments/assets/617106b1-0854-4802-aa2d-e4cad6e8d33e
+## Response
+https://github.com/user-attachments/assets/f7accdfa-32f5-4f42-a6e6-4e4628ef62da
+
+
 ## Overview
 This project provides a system to retrieve and analyze research papers effectively. By allowing users to input the URL of a research paper, the application scrapes its content, processes it into embeddings, and generates precise, context-aware responses to user queries using advanced natural language processing (NLP) techniques. The output is displayed in a chat interface for seamless user interaction.
 ![image](https://github.com/user-attachments/assets/e05a2207-e5f7-47d7-a83f-c1cbbcaea67b)
