@@ -1,15 +1,9 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-import re
-from bs4 import BeautifulSoup
-import logging
 import requests
+from bs4 import BeautifulSoup
+import re
+import logging
 import time
+import urllib.parse
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,282 +11,315 @@ logger = logging.getLogger(__name__)
 
 def universal_scraper(url):
     """
-    A universal scraper that can extract content from any research paper website.
-    Falls back to different extraction methods if one fails.
+    A universal scraper that can extract content from any research paper website
+    using requests and BeautifulSoup.
     """
-    # Try multiple extraction methods in order of preference
-    result = None
+    logger.info(f"Starting universal scraper for URL: {url}")
     
-    # First try direct request with BeautifulSoup (fastest)
-    try:
-        result = extract_with_requests(url)
-        if is_valid_content(result):
-            logger.info("Successfully extracted content using requests/BeautifulSoup")
-            return result
-    except Exception as e:
-        logger.warning(f"Request-based extraction failed: {str(e)}")
+    # Try extraction with several attempts
+    attempts = 3
+    delay = 2  # seconds
     
-    # Then try Selenium with headless browser (more powerful)
-    try:
-        result = extract_with_selenium(url)
-        if is_valid_content(result):
-            logger.info("Successfully extracted content using Selenium")
-            return result
-    except Exception as e:
-        logger.warning(f"Selenium-based extraction failed: {str(e)}")
+    for attempt in range(attempts):
+        try:
+            result = extract_with_requests(url)
+            if is_valid_content(result):
+                logger.info(f"Successfully extracted content, attempt {attempt+1}")
+                return result
+            else:
+                logger.warning(f"Attempt {attempt+1}: Extracted content not valid")
+                if attempt < attempts - 1:
+                    time.sleep(delay)
+                    delay *= 2  # Exponential backoff
+        except Exception as e:
+            logger.error(f"Extraction attempt {attempt+1} failed: {str(e)}")
+            if attempt < attempts - 1:
+                time.sleep(delay)
+                delay *= 2
     
-    # Finally try our specialized extractors
-    try:
-        result = extract_with_site_specific_method(url)
-        if is_valid_content(result):
-            logger.info("Successfully extracted content using site-specific extractor")
-            return result
-    except Exception as e:
-        logger.warning(f"Site-specific extraction failed: {str(e)}")
-    
-    # If all methods fail, try to extract minimal info from URL
+    # If all extraction attempts fail, try to extract minimal info from URL
     try:
         paper_id = extract_paper_id_from_url(url)
+        domain = extract_domain(url)
         if paper_id:
-            return f"Title: Research Paper {paper_id}\nAbstract: Could not extract content from URL. Using minimal information derived from URL.\nPaper ID: {paper_id}"
-    except:
-        pass
-        
+            return f"Title: Research Paper from {domain}\nPaper ID: {paper_id}\nAbstract: Could not extract content from URL. Using minimal information derived from URL."
+    except Exception as e:
+        logger.error(f"Error extracting paper ID: {str(e)}")
+    
     # If all methods fail, return an error message
     logger.error(f"All extraction methods failed for URL: {url}")
     return f"Failed to extract content from {url}. Please check if the URL is valid and accessible."
 
 
 def extract_with_requests(url):
-    """Extract content using simple requests and BeautifulSoup"""
+    """Extract content using requests and BeautifulSoup"""
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    response = requests.get(url, headers=headers, timeout=10)
-    response.raise_for_status()  # Raise exception for 4XX/5XX responses
+    
+    response = requests.get(url, headers=headers, timeout=20)
+    if response.status_code != 200:
+        logger.warning(f"Request returned non-200 status code: {response.status_code}")
+        raise Exception(f"Failed to load URL: {url}, Status code: {response.status_code}")
     
     soup = BeautifulSoup(response.text, 'html.parser')
+    logger.info("Successfully loaded and parsed page content")
     
     # Extract title
-    title = soup.find('title').get_text() if soup.find('title') else ""
+    title = soup.find('title').get_text(strip=True) if soup.find('title') else "Unknown Title"
     
     # Extract main content
-    content = ""
+    content = {}
     
     # Try to find abstract
+    abstract = extract_abstract(soup)
+    
+    # Try to find authors
+    authors = extract_authors(soup)
+    
+    # Try to find main content sections
+    main_content = extract_main_content(soup)
+    
+    # Combine all extracted content
+    content_text = f"Title: {title}\n\n"
+    
+    if authors:
+        content_text += f"Authors: {authors}\n\n"
+        
+    if abstract:
+        content_text += f"Abstract: {abstract}\n\n"
+    
+    if main_content:
+        content_text += f"Content: {main_content}\n\n"
+    else:
+        # Fallback to extracting paragraphs
+        paragraphs = [p.get_text(strip=True) for p in soup.find_all('p') if len(p.get_text(strip=True)) > 100]
+        if paragraphs:
+            content_text += f"Content: {' '.join(paragraphs[:10])}\n\n"
+    
+    # If we didn't get much content, try a site-specific approach based on domain
+    if len(content_text) < 500:
+        domain = extract_domain(url)
+        content_text = apply_site_specific_extraction(soup, domain, url, content_text)
+    
+    return content_text
+
+
+def extract_abstract(soup):
+    """Extract abstract from soup object"""
+    # Try multiple approaches to find abstract
     abstract_candidates = [
+        # Direct class or ID match
         soup.find('div', {'id': 'abstract'}),
         soup.find('section', {'id': 'abstract'}),
         soup.find('div', {'class': 'abstract'}),
-        soup.find(string=re.compile(r'Abstract')),
-        soup.find('p', string=re.compile(r'Abstract'))
+        soup.find('section', {'class': 'abstract'}),
+        
+        # Partial class match
+        soup.find(lambda tag: tag.name and tag.get('class') and 
+                 any('abstract' in c.lower() for c in tag.get('class'))),
+                 
+        # Abstract section by heading
+        soup.find(lambda tag: tag.name in ['h1', 'h2', 'h3'] and 
+                 tag.get_text(strip=True).lower() == 'abstract'),
     ]
     
-    abstract = next((c.get_text() for c in abstract_candidates if c), "")
+    for candidate in abstract_candidates:
+        if candidate:
+            # If we found a heading, get the next element
+            if candidate.name in ['h1', 'h2', 'h3']:
+                next_elem = candidate.find_next()
+                if next_elem and len(next_elem.get_text(strip=True)) > 50:
+                    return next_elem.get_text(strip=True)
+            # Otherwise return the candidate text
+            if len(candidate.get_text(strip=True)) > 50:
+                return candidate.get_text(strip=True)
     
-    # Try to find main content sections
-    main_content_tags = [
+    # Try finding text with "Abstract" label
+    abstract_text = soup.find(string=re.compile(r'Abstract[:\s]'))
+    if abstract_text:
+        parent = abstract_text.parent
+        next_elem = parent.find_next()
+        if next_elem and len(next_elem.get_text(strip=True)) > 50:
+            return next_elem.get_text(strip=True)
+        elif parent and len(parent.get_text(strip=True)) > 100:
+            return parent.get_text(strip=True).replace("Abstract:", "").replace("Abstract", "").strip()
+    
+    return ""
+
+
+def extract_authors(soup):
+    """Extract authors from soup object"""
+    # Try multiple approaches to find authors
+    author_candidates = [
+        # Direct class or ID match
+        soup.find('div', {'id': 'authors'}),
+        soup.find('section', {'id': 'authors'}),
+        soup.find('div', {'class': 'authors'}),
+        soup.find('div', {'class': 'author-list'}),
+        
+        # Partial class match
+        soup.find(lambda tag: tag.name and tag.get('class') and 
+                 any('author' in c.lower() for c in tag.get('class'))),
+                 
+        # Authors section by heading
+        soup.find(lambda tag: tag.name in ['h1', 'h2', 'h3'] and 
+                 tag.get_text(strip=True).lower() in ['authors', 'author']),
+    ]
+    
+    for candidate in author_candidates:
+        if candidate:
+            # If we found a heading, get the next element
+            if candidate.name in ['h1', 'h2', 'h3']:
+                next_elem = candidate.find_next()
+                if next_elem:
+                    return next_elem.get_text(strip=True)
+            # Otherwise return the candidate text
+            return candidate.get_text(strip=True)
+    
+    return ""
+
+
+def extract_main_content(soup):
+    """Extract main content from soup object"""
+    # Try multiple approaches to find main content
+    content_candidates = [
         # Common content containers
         soup.find('div', {'id': 'content'}),
         soup.find('div', {'id': 'main-content'}),
         soup.find('div', {'id': 'body'}),
         soup.find('article'),
-        # For when specific sections don't exist, get all paragraphs
-        [p.get_text() for p in soup.find_all('p') if len(p.get_text()) > 100]
+        
+        # Sections that might contain content
+        soup.find_all('section'),
     ]
     
-    main_content = ""
-    for tag in main_content_tags:
-        if tag:
-            if isinstance(tag, list):
-                main_content = " ".join(tag)
+    for candidate in content_candidates:
+        if candidate:
+            if isinstance(candidate, list):
+                # For a list of sections, combine their text
+                texts = []
+                for section in candidate:
+                    text = section.get_text(strip=True)
+                    if len(text) > 200:  # Only include substantial sections
+                        texts.append(text)
+                if texts:
+                    return "\n\n".join(texts[:5])  # Limit to first 5 sections
             else:
-                main_content = tag.get_text()
-            break
+                # For a single element, get its text
+                text = candidate.get_text(strip=True)
+                if len(text) > 200:
+                    return text[:5000]  # Limit to 5000 chars
     
-    # Combine all extracted content
-    content = f"Title: {title}\n\nAbstract: {abstract}\n\n{main_content}"
-    return content
+    return ""
 
 
-def extract_with_selenium(url):
-    """Extract content using Selenium for JavaScript-heavy sites"""
-    # Configure Chrome options
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in headless mode
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+def apply_site_specific_extraction(soup, domain, url, content_text):
+    """Apply site-specific extraction based on the domain"""
+    logger.info(f"Applying site-specific extraction for domain: {domain}")
     
-    # Initialize the driver
-    driver = webdriver.Chrome(options=chrome_options)
+    if "arxiv.org" in domain:
+        # ArXiv specific extraction
+        title_elem = soup.find('h1', {'class': 'title'})
+        if title_elem:
+            title = title_elem.get_text(strip=True).replace('Title:', '').strip()
+            content_text = f"Title: {title}\n\n"
+        
+        abstract_elem = soup.find('blockquote', {'class': 'abstract'})
+        if abstract_elem:
+            abstract = abstract_elem.get_text(strip=True).replace('Abstract:', '').strip()
+            content_text += f"Abstract: {abstract}\n\n"
+        
+        authors_elem = soup.find('div', {'class': 'authors'})
+        if authors_elem:
+            authors = authors_elem.get_text(strip=True)
+            content_text += f"Authors: {authors}\n\n"
     
-    try:
-        # Load the page
-        driver.get(url)
+    elif "ieee" in domain:
+        # IEEE specific extraction
+        abstract_elem = soup.find('div', {'class': 'abstract-text'})
+        if abstract_elem:
+            abstract = abstract_elem.get_text(strip=True)
+            content_text = content_text.replace("Abstract:", "")
+            content_text += f"Abstract: {abstract}\n\n"
         
-        # Wait for page to load (adjust timeout as needed)
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
-        
-        # Let JavaScript execute fully
-        time.sleep(3)
-        
-        # Get the page source and parse with BeautifulSoup
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        
-        # Extract title
-        title = driver.title
-        
-        # Extract specific elements that might contain research content
-        content_elements = []
-        
-        # Try to find abstract section
-        abstract_elements = driver.find_elements(By.XPATH, "//*[contains(text(), 'Abstract') or @id='abstract' or contains(@class, 'abstract')]")
-        if abstract_elements:
-            for element in abstract_elements:
-                content_elements.append(f"Abstract: {element.text}")
-        
-        # Try to find main content sections (looking for common patterns in research papers)
-        section_elements = driver.find_elements(By.TAG_NAME, "section")
-        for section in section_elements:
-            content_elements.append(section.text)
-        
-        # Try to find div elements with significant text (typical for content)
-        divs = driver.find_elements(By.TAG_NAME, "div")
-        for div in divs:
-            if len(div.text) > 200:  # Only include divs with substantial text
-                content_elements.append(div.text)
-        
-        # Combine all content
-        full_content = f"Title: {title}\n\n" + "\n\n".join(content_elements[:10])  # Limit to first 10 sections to avoid too much noise
-        
-        return full_content
+        # IEEE often has structured content in sections
+        sections = soup.find_all('div', {'class': 'section'})
+        if sections:
+            section_texts = []
+            for section in sections:
+                heading = section.find(['h2', 'h3'])
+                if heading:
+                    section_text = f"{heading.get_text(strip=True)}:\n"
+                    section_text += section.get_text(strip=True).replace(heading.get_text(strip=True), "")
+                    section_texts.append(section_text)
+            if section_texts:
+                content_text += "Sections:\n" + "\n\n".join(section_texts[:5]) + "\n\n"
     
-    finally:
-        driver.quit()
-
-
-def extract_with_site_specific_method(url):
-    """Extract content using site-specific selectors"""
-    # Configure Chrome options
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
+    elif "sciencedirect" in domain:
+        # ScienceDirect specific extraction
+        abstract_elem = soup.find('div', {'class': 'abstract'})
+        if abstract_elem:
+            abstract = abstract_elem.get_text(strip=True)
+            content_text = content_text.replace("Abstract:", "")
+            content_text += f"Abstract: {abstract}\n\n"
+        
+        # ScienceDirect often has structured sections
+        sections = soup.find_all('section')
+        if sections:
+            section_texts = []
+            for section in sections:
+                if len(section.get_text(strip=True)) > 200:
+                    section_texts.append(section.get_text(strip=True))
+            if section_texts:
+                content_text += "Sections:\n" + "\n\n".join(section_texts[:5]) + "\n\n"
     
-    # Initialize the driver
-    driver = webdriver.Chrome(options=chrome_options)
-    
-    try:
-        # Load the page
-        driver.get(url)
-        
-        # Wait for page to load
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
-        
-        # Extract based on the domain
-        domain = extract_domain(url)
-        
-        if "arxiv.org" in domain:
-            # Specialized extraction for ArXiv
-            title = get_element_text(driver, By.CLASS_NAME, "title")
-            authors = get_element_text(driver, By.CLASS_NAME, "authors")
-            abstract = get_element_text(driver, By.CLASS_NAME, "abstract")
-            content = f"Title: {title}\nAuthors: {authors}\nAbstract: {abstract}"
-            
-        elif "sciencedirect.com" in domain:
-            # Specialized extraction for ScienceDirect
-            title = get_element_text(driver, By.CLASS_NAME, "publication-title")
-            authors = get_element_text(driver, By.CLASS_NAME, "author-group")
-            abstract = get_element_text(driver, By.CLASS_NAME, "abstract")
-            content = f"Title: {title}\nAuthors: {authors}\nAbstract: {abstract}"
-            
-        elif "ieee.org" in domain:
-            # Specialized extraction for IEEE
-            title = get_element_text(driver, By.CLASS_NAME, "document-title")
-            authors = get_element_text(driver, By.CLASS_NAME, "authors-accordion-container")
-            abstract = get_element_text(driver, By.CLASS_NAME, "abstract-text")
-            content = f"Title: {title}\nAuthors: {authors}\nAbstract: {abstract}"
-            
-        else:
-            # Generic extraction for other domains
-            # Get the page title
-            title = driver.title
-            
-            # Try to find abstract and sections
-            content_elements = []
-            
-            # Look for elements with specific keywords in their IDs or classes
-            for keyword in ["abstract", "introduction", "method", "result", "conclusion", "discussion"]:
-                elements = driver.find_elements(By.XPATH, f"//*[contains(@id, '{keyword}') or contains(@class, '{keyword}')]")
-                for element in elements:
-                    if element.text and len(element.text) > 50:
-                        content_elements.append(f"{keyword.capitalize()}: {element.text}")
-            
-            content = f"Title: {title}\n\n" + "\n\n".join(content_elements)
-        
-        return content
-    
-    finally:
-        driver.quit()
-
-
-def get_element_text(driver, by, value):
-    """Helper function to get text from an element safely"""
-    try:
-        element = driver.find_element(by, value)
-        return element.text
-    except NoSuchElementException:
-        return ""
+    return content_text
 
 
 def extract_domain(url):
-    """Extract the domain from a URL"""
-    match = re.search(r'https?://([^/]+)', url)
-    if match:
-        return match.group(1)
-    return ""
+    """Extract domain from URL"""
+    parsed_url = urllib.parse.urlparse(url)
+    domain = parsed_url.netloc
+    return domain
 
 
 def is_valid_content(content):
     """Check if the extracted content is valid and substantial"""
-    if not content or len(content) < 100:
+    if not content:
         return False
     
-    # Check if content has some structure (title, abstract, etc.)
-    if not any(keyword in content.lower() for keyword in ["title", "abstract", "introduction"]):
+    # Check if content has enough length
+    if len(content) < 200:
+        return False
+    
+    # Check if content contains at least title and some other content
+    if "Title:" not in content or len(content.split("Title:")[1].strip()) < 10:
+        return False
+    
+    # Check if we have either abstract or content
+    if "Abstract:" not in content and "Content:" not in content:
         return False
     
     return True
 
 
 def extract_paper_id_from_url(url):
-    """Extract a paper ID from the URL if possible"""
-    try:
-        # For arXiv URLs
-        if "arxiv.org" in url:
-            import re
-            match = re.search(r'arxiv.org/abs/(\d+\.\d+)', url)
-            if match:
-                return match.group(1)
-        
-        # For DOI URLs
-        if "doi.org" in url:
-            import re
-            match = re.search(r'doi.org/(.+)$', url)
-            if match:
-                return match.group(1)
-                
-        # Extract any sequence that looks like a paper ID
-        import re
-        match = re.search(r'((?:\d+\.?\d+)|(?:[A-Z]\d+[A-Z0-9]+))', url)
+    """Extract paper ID from URL using common patterns"""
+    patterns = [
+        r'arxiv\.org/abs/(\d+\.\d+)',         # ArXiv ID format
+        r'doi\.org/([^/]+/[^/]+)',             # DOI format
+        r'(\d{4}\.\d{4,5})',                   # ArXiv ID in URL
+        r'paper[=/](\w+)',                     # Generic paper ID
+        r'article[=/](\w+)',                   # Generic article ID
+        r'document/(\d+)',                     # IEEE format
+        r'pii/(S\d+)',                         # ScienceDirect format
+        r'([^/]+)$'                            # Last segment as fallback
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, url)
         if match:
             return match.group(1)
-    except:
-        pass
     
     return None 

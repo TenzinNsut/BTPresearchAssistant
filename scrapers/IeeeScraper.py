@@ -1,15 +1,8 @@
 import time
 import re
 import logging
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-from webdriver_manager.chrome import ChromeDriverManager
+import requests
+from bs4 import BeautifulSoup
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -18,72 +11,68 @@ logger = logging.getLogger(__name__)
 
 def scraper(url: str):
     logger.info(f"Starting IEEE scraping for URL: {url}")
-    # Initialize Selenium WebDriver
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
     
     try:
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        logger.info("Successfully initialized ChromeDriver")
-    except Exception as e:
-        logger.error(f"Failed to initialize ChromeDriver: {str(e)}")
-        # Fallback to direct initialization if webdriver-manager fails
-        try:
-            driver = webdriver.Chrome(options=chrome_options)
-            logger.info("Initialized ChromeDriver directly")
-        except Exception as e2:
-            logger.error(f"Failed direct initialization: {str(e2)}")
-            return f"Error initializing browser: {str(e2)}"
-
-    try:
+        # Set a user agent to mimic a browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        # Make the request
         logger.info(f"Loading IEEE URL: {url}")
-        driver.get(url)
+        response = requests.get(url, headers=headers, timeout=20)
         
-        # Wait for page to load
-        try:
-            WebDriverWait(driver, 20).until(
-                EC.presence_of_element_located((By.TAG_NAME, "body"))
-            )
-            logger.info("Page content loaded successfully")
-        except TimeoutException:
-            logger.warning("Timeout waiting for page to load. Proceeding anyway.")
-            
-        elems = driver.find_elements(By.CLASS_NAME, "col-24-24")
-        logger.info(f"Found {len(elems)} entries")
+        # Check if the request was successful
+        if response.status_code != 200:
+            logger.error(f"Failed to load URL: {url}, Status code: {response.status_code}")
+            return f"Failed to load URL: {url}, Status code: {response.status_code}"
         
+        # Parse HTML content
+        soup = BeautifulSoup(response.text, 'html.parser')
+        logger.info("Successfully loaded and parsed the page")
+        
+        # Initialize scraped text
         scraped_txt = ""
-        for elem in elems:
-            if len(elem.text) > len(scraped_txt):
-                scraped_txt = elem.text
+        
+        # Try to find main content
+        main_content = soup.find_all(class_="col-24-24")
+        if main_content:
+            logger.info(f"Found {len(main_content)} entries with class col-24-24")
+            for elem in main_content:
+                elem_text = elem.get_text(strip=True)
+                if len(elem_text) > len(scraped_txt):
+                    scraped_txt = elem_text
         
         # If no good text found, try alternate methods
         if not scraped_txt or len(scraped_txt) < 100:
             logger.warning("Primary extraction method yielded insufficient data. Trying alternate methods.")
             
             # Try to get title
-            try:
-                title_elem = driver.find_element(By.CLASS_NAME, "document-title")
-                title = title_elem.text if title_elem else "Unknown Title"
-            except:
-                title = driver.title
+            title = soup.title.text if soup.title else "Unknown Title"
+            title_elem = soup.find(class_="document-title")
+            if title_elem:
+                title = title_elem.get_text(strip=True)
             
             # Try to get abstract
-            try:
-                abstract_elem = driver.find_elements(By.XPATH, "//div[contains(@class, 'abstract') or @id='abstract']")
-                abstract = "\n".join([a.text for a in abstract_elem if a.text]) if abstract_elem else ""
-            except:
-                abstract = ""
+            abstract = ""
+            abstract_elems = soup.find_all(["div", "section"], class_=lambda c: c and "abstract" in c.lower())
+            if not abstract_elems:
+                abstract_elems = soup.find_all(id=lambda i: i and "abstract" in i.lower())
+            
+            if abstract_elems:
+                abstract = "\n".join([a.get_text(strip=True) for a in abstract_elems if a.get_text(strip=True)])
             
             # Try to get content sections
-            try:
-                sections = driver.find_elements(By.TAG_NAME, "section")
-                content = "\n\n".join([s.text for s in sections if len(s.text) > 50])
-            except:
-                content = ""
+            content = ""
+            sections = soup.find_all("section")
+            if sections:
+                content = "\n\n".join([s.get_text(strip=True) for s in sections if len(s.get_text(strip=True)) > 50])
+            
+            # Try to get main content if not found yet
+            if not content:
+                paragraphs = soup.find_all("p")
+                if paragraphs:
+                    content = "\n\n".join([p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 50])
             
             scraped_txt = f"Title: {title}\n\nAbstract: {abstract}\n\n{content}"
             
@@ -96,11 +85,6 @@ def scraper(url: str):
     except Exception as e:
         logger.error(f"Error during IEEE scraping: {str(e)}")
         return f"Error scraping IEEE URL: {str(e)}"
-        
-    finally:
-        time.sleep(1)
-        driver.close()
-        logger.info("Browser closed")
 
 
 def store(txt: str):
@@ -150,13 +134,28 @@ def store(txt: str):
 def ieee_scrap(url):
     logger.info(f"IEEE scraper called for URL: {url}")
     try:
-        data = scraper(url)
-        if not data or len(data) < 50:
-            logger.warning(f"Extracted data too short or empty")
-            return f"Failed to extract meaningful content from {url}"
+        # Add retry mechanism for more reliability
+        attempts = 3
+        delay = 2  # seconds
         
-        logger.info(f"Successfully scraped IEEE URL. Data length: {len(data)}")
-        return data
+        for attempt in range(attempts):
+            try:
+                data = scraper(url)
+                if data and len(data) >= 50:
+                    logger.info(f"Successfully scraped IEEE URL. Data length: {len(data)}")
+                    return data
+                else:
+                    logger.warning(f"Attempt {attempt+1}: Extracted data too short or empty")
+                    if attempt < attempts - 1:
+                        time.sleep(delay)
+                        delay *= 2  # Exponential backoff
+            except Exception as e:
+                logger.error(f"Attempt {attempt+1} failed: {str(e)}")
+                if attempt < attempts - 1:
+                    time.sleep(delay)
+                    delay *= 2
+        
+        return f"Failed to extract meaningful content from {url} after {attempts} attempts"
     except Exception as e:
         logger.error(f"Error in ieee_scrap: {str(e)}")
         return f"Error scraping IEEE URL: {str(e)}"
