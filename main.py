@@ -251,182 +251,160 @@ def upload_pdf():
             
             # Save the file
             file.save(file_path)
-            logger.info(f"PDF saved to {file_path}")
+            logger.info(f"Saved PDF to: {file_path}")
             
-            # Initialize or update session data
-            if session_id not in session_data:
-                session_data[session_id] = {
-                    'pdf_filename': filename,
-                    'url': '',
-                    'data': '',
-                    'pdf_list': [{'id': filename, 'name': original_filename}],
-                    'last_active': datetime.now()
-                }
-            else:
-                # Clear any previous URL or data
-                session_data[session_id]['url'] = ''
-                session_data[session_id]['data'] = ''
-                session_data[session_id]['pdf_filename'] = filename
-                session_data[session_id]['pdf_list'] = [{'id': filename, 'name': original_filename}]
-                session_data[session_id]['last_active'] = datetime.now()
-            
-            # Return success
-            return jsonify({
-                "status": "success", 
-                "message": "File uploaded successfully", 
-                "filename": filename
-            })
-            
+            # Extract text from the PDF
+            try:
+                pdf_text = extract_text_from_pdf(file_path)
+                
+                # Store in session data
+                if session_id in session_data:
+                    # Update existing session
+                    session_data[session_id]['pdf_filename'] = filename
+                    session_data[session_id]['data'] = pdf_text
+                    
+                    # Add to PDF list if not already present
+                    pdf_list = session_data[session_id].get('pdf_list', [])
+                    if filename not in pdf_list:
+                        pdf_list.append(filename)
+                    session_data[session_id]['pdf_list'] = pdf_list
+                    
+                    session_data[session_id]['last_active'] = datetime.now()
+                else:
+                    # Create new session
+                    session_data[session_id] = {
+                        'url': '',
+                        'pdf_filename': filename,
+                        'data': pdf_text,
+                        'pdf_list': [filename],
+                        'last_active': datetime.now()
+                    }
+                
+                return jsonify({"status": "success", "message": "PDF uploaded successfully"})
+            except Exception as e:
+                logger.error(f"Error processing PDF: {str(e)}")
+                return jsonify({"status": "error", "message": f"Error processing PDF: {str(e)}"}), 500
         else:
-            return jsonify({
-                "status": "error", 
-                "message": "File type not allowed. Please upload a PDF file."
-            }), 400
-            
+            return jsonify({"status": "error", "message": "Invalid file type"}), 400
     except Exception as e:
         logger.error(f"Error uploading PDF: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/get_pdfs", methods=["POST"])
 def get_pdfs():
-    """Return list of PDFs for the current session"""
+    """Get list of PDFs for a session"""
     try:
         data = request.get_json()
         session_id = data.get('session_id')
         
-        if not session_id:
-            return jsonify({"status": "error", "message": "No session ID provided"}), 400
+        if not session_id or session_id not in session_data:
+            return jsonify({"status": "error", "message": "Invalid session ID"}), 400
+        
+        # Get PDFs associated with this session
+        pdf_list = session_data[session_id].get('pdf_list', [])
+        
+        # Format PDF list for display
+        formatted_pdfs = []
+        for pdf_name in pdf_list:
+            # Strip session ID from filename for display
+            display_name = pdf_name
+            if pdf_name.startswith(f"{session_id}_"):
+                display_name = pdf_name[len(session_id)+1:]
             
-        # Update last active timestamp
-        if session_id in session_data:
-            session_data[session_id]['last_active'] = datetime.now()
-            
-            # Return PDF information
-            pdf_list = session_data[session_id].get('pdf_list', [])
-            current_pdf = session_data[session_id].get('pdf_filename', "")
-            
-            return jsonify({
-                "status": "success",
-                "pdfs": pdf_list,
-                "current_pdf": current_pdf
+            formatted_pdfs.append({
+                "filename": pdf_name,
+                "display_name": display_name,
+                "is_active": pdf_name == session_data[session_id].get('pdf_filename', '')
             })
-        else:
-            # No PDFs for this session
-            return jsonify({
-                "status": "success",
-                "pdfs": [],
-                "current_pdf": ""
-            })
-            
+        
+        return jsonify({"status": "success", "pdfs": formatted_pdfs})
     except Exception as e:
         logger.error(f"Error getting PDFs: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/select_pdf", methods=["POST"])
 def select_pdf():
-    """Select an existing PDF from the session"""
+    """Select a PDF from those already uploaded"""
     try:
         data = request.get_json()
         session_id = data.get('session_id')
-        pdf_id = data.get('pdf_id')
+        filename = data.get('filename')
         
         if not session_id or session_id not in session_data:
-            return jsonify({"status": "error", "message": "Session not found"}), 404
-            
-        pdf_list = session_data[session_id].get('pdf_list', [])
+            return jsonify({"status": "error", "message": "Invalid session ID"}), 400
         
-        if pdf_id not in pdf_list:
+        if not filename:
+            return jsonify({"status": "error", "message": "No filename provided"}), 400
+        
+        # Check if the PDF exists in the session's list
+        pdf_list = session_data[session_id].get('pdf_list', [])
+        if filename not in pdf_list:
             return jsonify({"status": "error", "message": "PDF not found in session"}), 404
-            
-        # Get the PDF path and extract text again
-        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_id)
-        if not os.path.exists(pdf_path):
-            return jsonify({"status": "error", "message": "PDF file not found"}), 404
-            
-        try:
-            # Extract text from PDF
-            pdf_text = extract_text_from_pdf(pdf_path)
-            
-            # Update session data to use this PDF
-            session_data[session_id].update({
-                'pdf_filename': pdf_id,
-                'data': pdf_text,
-                'last_active': datetime.now()
-            })
-            
-            # Clean up Pinecone data before switching
+        
+        # Check if the file exists
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(file_path):
+            return jsonify({"status": "error", "message": "PDF file not found on server"}), 404
+        
+        # Set as active PDF and extract text if needed
+        session_data[session_id]['pdf_filename'] = filename
+        session_data[session_id]['last_active'] = datetime.now()
+        
+        # Extract text if not already in session data
+        if not session_data[session_id].get('data'):
             try:
-                delete_embeddings(f"session:{session_id}")
-                logger.info(f"Deleted Pinecone data for session before switching PDFs: {session_id}")
+                pdf_text = extract_text_from_pdf(file_path)
+                session_data[session_id]['data'] = pdf_text
             except Exception as e:
-                logger.error(f"Error deleting Pinecone data: {str(e)}")
-            
-            return jsonify({
-                "status": "success",
-                "message": "PDF selected successfully"
-            })
-            
-        except Exception as e:
-            logger.error(f"Error processing selected PDF: {str(e)}")
-            return jsonify({"status": "error", "message": f"Error processing PDF: {str(e)}"}), 500
-            
+                logger.error(f"Error extracting text from PDF: {str(e)}")
+                return jsonify({"status": "error", "message": f"Error processing PDF: {str(e)}"}), 500
+        
+        return jsonify({"status": "success", "message": "PDF selected successfully"})
     except Exception as e:
         logger.error(f"Error selecting PDF: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/clear_session", methods=["POST"])
 def clear_session():
-    """Clear all data for a session including Pinecone data"""
+    """Clear session data"""
     try:
         data = request.get_json()
         session_id = data.get('session_id')
-        clear_only_pinecone = data.get('clear_only_pinecone', False)
         
-        if not session_id:
-            return jsonify({"status": "error", "message": "No session ID provided"}), 400
-            
-        # Delete Pinecone data regardless of session existence
+        if not session_id or session_id not in session_data:
+            return jsonify({"status": "success", "message": "No session to clear"}), 200
+        
+        # Delete associated PDFs
+        pdf_list = session_data[session_id].get('pdf_list', [])
+        for pdf_filename in pdf_list:
+            try:
+                pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
+                if os.path.exists(pdf_path):
+                    os.remove(pdf_path)
+                    logger.info(f"Deleted PDF file during session clear: {pdf_path}")
+            except Exception as e:
+                logger.error(f"Error deleting PDF file: {str(e)}")
+        
+        # Clean up Pinecone data
         try:
             delete_embeddings(f"session:{session_id}")
             logger.info(f"Deleted Pinecone data for session: {session_id}")
         except Exception as e:
             logger.error(f"Error deleting Pinecone data: {str(e)}")
         
-        # If we're only clearing Pinecone data, stop here
-        if clear_only_pinecone:
-            return jsonify({
-                "status": "success",
-                "message": "Pinecone data cleared successfully"
-            })
+        # Remove session data
+        del session_data[session_id]
+        logger.info(f"Cleared session: {session_id}")
         
-        # Delete PDFs if session exists
-        if session_id in session_data:
-            pdf_list = session_data[session_id].get('pdf_list', [])
-            for pdf_filename in pdf_list:
-                try:
-                    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
-                    if os.path.exists(pdf_path):
-                        os.remove(pdf_path)
-                        logger.info(f"Deleted PDF file: {pdf_path}")
-                except Exception as e:
-                    logger.error(f"Error deleting PDF file: {str(e)}")
-            
-            # Remove from session data
-            del session_data[session_id]
-        
-        return jsonify({
-            "status": "success",
-            "message": "Session cleared successfully"
-        })
-        
+        return jsonify({"status": "success", "message": "Session cleared successfully"})
     except Exception as e:
         logger.error(f"Error clearing session: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 def extract_text_from_pdf(pdf_path):
-    """Extract text from a PDF file"""
-    text = ""
+    """Extract text from PDF file"""
     try:
+        text = ""
         reader = PdfReader(pdf_path)
         for page in reader.pages:
             page_text = page.extract_text()
@@ -440,7 +418,7 @@ def extract_text_from_pdf(pdf_path):
 @app.route("/get", methods=["GET", "POST"])
 def chat():
     try:
-    userQuery = request.form["msg"]  # User's question
+        userQuery = request.form["msg"]  # User's question
         session_id = request.form.get("session_id", "")
         logger.info(f'User query: {userQuery} for session: {session_id}')
 
@@ -521,7 +499,7 @@ def chat():
                 return result
             
             # Otherwise fetch data
-    data = store_data(userUrl)
+            data = store_data(userUrl)
             logger.info(f"Scraped data length: {len(data) if data else 0}")
             
             if not data:
@@ -558,7 +536,7 @@ def chat():
                 logger.warning("Empty result returned from embed_response")
                 return "I processed the paper but couldn't generate a specific answer. Could you ask in a different way?"
 
-    return result
+        return result
 
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
