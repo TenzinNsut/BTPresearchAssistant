@@ -1,96 +1,122 @@
-# Research Paper Insights Generator
+# Research Assistant
 
-https://github.com/user-attachments/assets/617106b1-0854-4802-aa2d-e4cad6e8d33e
-## Response
-https://github.com/user-attachments/assets/f7accdfa-32f5-4f42-a6e6-4e4628ef62da
+An AI-powered tool designed to help researchers extract insights from academic papers. This application allows users to upload PDFs or provide URLs to research papers, then ask specific questions about the content.
 
-
-## Overview
-This project provides a system to retrieve and analyze research papers effectively. By allowing users to input the URL of a research paper, the application scrapes its content, processes it into embeddings, and generates precise, context-aware responses to user queries using advanced natural language processing (NLP) techniques. The output is displayed in a chat interface for seamless user interaction.
-![image](https://github.com/user-attachments/assets/e05a2207-e5f7-47d7-a83f-c1cbbcaea67b)
-
----
+![Research Assistant Interface](https://kstatic.googleusercontent.com/files/202018a3b69e60845af5a9903c7bf87010a2e2e8d987bd0fef5a598c0ee2b4345721a4c549a4a8039ff3a3dfd85239de3d6735b9956ff60f525b72e36c377164)
 
 ## Features
-- **Web Scraping**: Extract textual content from research paper URLs using Beautiful Soup.
-- **Vector Embedding Generation**: Represent research content in high-dimensional vectors.
-- **FAISS for Similarity Search**: Perform efficient in-memory searches for relevant content.
-- **Speculative RAG Model**: Utilize a dual-model architecture for response generation:
-  - A specialized model drafts responses.
-  - A generalized model refines and verifies them.
-- **Flask Integration**: Provide an intuitive chat-based interface for query-response interaction.
-- **Supported Websites**: Arxiv, ScienceDirect, Iee
----
 
-## Installation
+- **PDF Upload**: Upload research papers in PDF format
+- **URL Support**: Extract content from research paper URLs (ArXiv, IEEE, Science Direct)
+- **AI-Powered Q&A**: Ask specific questions about the paper and get accurate, context-aware responses
+- **Session Management**: Manage multiple research sessions with automatic cleanup
+- **Mobile-Friendly UI**: Responsive design that works across devices
 
-1. **Clone the Repository**:
-   ```
-   git clone https://github.com/your-repo-name/research-paper-insights-generator.git
-   cd research-paper-insights-generator
-   ```
+## Technology Stack
 
-2. **Set Up a Virtual Environment & Install the required dependencies**:
-   ```
-   create a virtual environment: python -m venv ayurbotEnv
-   pip install -r requirements.txt
-   ```
-   
-3. **Set up the necessary application**:
-   - `ollama`: Install ollama on your device. (https://ollama.com/)
-   - `llama3.2`: Install llama3.2, by running this command in cmd. "ollama pull llama3.2"
+- **Backend**: Python with Flask
+- **AI Processing**: LangChain, HuggingFace Transformers, PyTorch
+- **Vector Database**: Pinecone for efficient semantic search and retrieval
+- **Web Scraping**: Beautiful Soup, Selenium for dynamic content extraction
+- **PDF Processing**: PyPDF for extracting text from PDFs
 
+## Setup and Installation
 
-4. **Run the Application**:
-   ```bash
-   python main.py
-   ```
+### Prerequisites
 
-5. **Access the chatbot through the provided URL or interface.**:
+- Python 3.8+
+- Pinecone API key (for vector database)
+- HuggingFace API token (optional, for improved model access)
 
+### Environment Variables
 
----
+Create a `.env` file in the project root with the following variables:
+
+```
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_ENVIRONMENT=your_pinecone_env
+HUGGINGFACE_API_KEY=your_huggingface_api_key
+```
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/research-assistant.git
+cd research-assistant
+```
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Create an uploads directory:
+```bash
+mkdir uploads
+```
+
+5. Start the application:
+```bash
+python main.py
+```
+
+The application will be available at http://localhost:8080
 
 ## Usage
-1. Paste the URL of a research paper into the provided input field.
-2. Submit a query related to the research content.
-3. View the generated response in the chat interface, complete with references to relevant sections of the research paper.
 
----
+1. **Upload a PDF**: Click the "Upload" button in the sidebar and select a research paper PDF
+2. **Or Enter a URL**: Paste a URL from ArXiv, IEEE, or Science Direct in the URL field
+3. **Ask Questions**: Type your question about the paper in the chat box
+4. **Review Responses**: The AI will provide specific answers based on the paper's content
 
-## Technologies Used
-- **Programming Language**: Python
-- **Web Framework**: Flask
-- **Web Scraping**: Beautiful Soup, Selenium
-- **Vector Search**: FAISS (Facebook AI Similarity Search)
-- **Model Architecture**: Speculative Retrieval-Augmented Generation (RAG)
+## Project Structure
 
----
+```
+research-assistant/
+├── main.py                    # Main Flask application
+├── finalEmbed.py              # Embedding and vector search logic
+├── requirements.txt           # Project dependencies
+├── scrapers/                  # Web scrapers for different sites
+│   ├── ArxivScraper.py
+│   ├── IeeeScraper.py
+│   ├── ScienceDirectScraper.py
+│   └── UniversalScraper.py
+├── static/                    # Static assets
+│   ├── styles.css
+│   └── homeStyle.css
+├── templates/                 # HTML templates
+│   ├── index.html
+│   └── chat.html
+└── uploads/                   # Directory for uploaded PDFs
+```
 
+## Limitations
 
-## Future Enhancements
-- **User Authentication**: Add login and profile management features.
-- **Cloud Deployment**: Host the application on AWS/GCP/Azure for broader accessibility.
-- **Support for PDF Uploads**: Allow users to upload research papers directly.
-- **Big Data Integration**: Use distributed processing tools like Apache Spark for handling large datasets.
+- Currently supports PDFs and specific research paper sites (ArXiv, IEEE, Science Direct)
+- Session data is stored in memory and will be lost on server restart
+- Maximum PDF size is limited to 10MB
 
----
+## Future Improvements
 
-## Contributing
-Contributions are welcome! Follow these steps:
-1. Fork the repository.
-2. Create a new branch for your feature/bugfix.
-3. Commit your changes and push to your fork.
-4. Submit a pull request for review.
-
----
+- Support for more research paper sources
+- Persistent storage for user sessions
+- Integration with reference management tools
+- Enhanced visualization of paper structure and key findings
+- Multi-document comparison capabilities
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for details.
 
----
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Contact
-For any queries or suggestions:
-- Email: [your-email@example.com](mailto:your-email@example.com)
-- GitHub Issues: [Create an issue](https://github.com/your-repo-name/research-paper-insights-generator/issues)
+## Acknowledgments
+
+- This project uses various open-source libraries and AI models
+- Research paper crawler and scraping techniques adapted from academic literature
+- User interface design inspired by modern AI assistants
