@@ -20,54 +20,40 @@ An AI-powered tool designed to help researchers extract insights from academic p
 - **Web Scraping**: Beautiful Soup, Selenium for dynamic content extraction
 - **PDF Processing**: PyPDF for extracting text from PDFs
 
-## Setup and Installation
+## Deployment
 
-### Prerequisites
+This application is configured for deployment on [Render](https://render.com/):
 
-- Python 3.8+
-- Pinecone API key (for vector database)
-- HuggingFace API token (optional, for improved model access)
+1. Connect your GitHub repository to Render
+2. Create a new Web Service pointing to this repository
+3. The deployment will automatically use the `render.yaml` configuration
 
-### Environment Variables
+## Environment Variables
 
-Create a `.env` file in the project root with the following variables:
+Set the following environment variables in your Render dashboard:
 
-```
-PINECONE_API_KEY=your_pinecone_api_key
-PINECONE_ENVIRONMENT=your_pinecone_env
-HUGGINGFACE_API_KEY=your_huggingface_api_key
-```
+- `HUGGINGFACE_API_KEY`: Your Hugging Face API key for embedding generation
+- `PINECONE_API_KEY`: Your Pinecone API key for vector storage
+- `PINECONE_ENVIRONMENT`: Your Pinecone environment (e.g., "us-west1-gcp")
 
-### Installation
+## Local Development
 
-1. Clone the repository:
+To run the app locally:
+
 ```bash
-git clone https://github.com/yourusername/research-assistant.git
-cd research-assistant
-```
-
-2. Create and activate a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows, use: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-4. Create an uploads directory:
-```bash
-mkdir uploads
-```
+# Run the build script
+./build.sh  # On Linux/Mac
+# or 
+python -c "exec(open('build.sh').read())"  # On Windows
 
-5. Start the application:
-```bash
+# Start the server
 python main.py
 ```
 
-The application will be available at http://localhost:8080
+The app will be available at http://localhost:8080
 
 ## Usage
 
