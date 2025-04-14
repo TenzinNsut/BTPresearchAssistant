@@ -39,13 +39,33 @@ def init_pinecone():
         
         logger.info(f"Available Pinecone indexes: {index_names}")
         
-        if index_name not in index_names:
+        # Check if we need to recreate the index (wrong dimensions)
+        need_recreate = False
+        if index_name in index_names:
+            try:
+                # Try to describe the index
+                index_info = pc.describe_index(index_name)
+                if hasattr(index_info, 'dimension'):
+                    current_dimension = index_info.dimension
+                    if current_dimension != 384:  # We need 384 for all-MiniLM-L6-v2
+                        logger.warning(f"Index has wrong dimension: {current_dimension}, needs 384. Will recreate.")
+                        need_recreate = True
+                        # Delete the existing index
+                        pc.delete_index(index_name)
+                        logger.info(f"Deleted index {index_name} to recreate with correct dimensions")
+                        # Wait for deletion to complete
+                        time.sleep(15)
+            except Exception as e:
+                logger.error(f"Error checking index dimensions: {str(e)}")
+        
+        # Create index if it doesn't exist or needs recreation
+        if index_name not in index_names or need_recreate:
             # Create index if it doesn't exist
             logger.info(f"Creating Pinecone index '{index_name}'")
             try:
                 pc.create_index(
                     name=index_name,
-                    dimension=1024,  # Dimension for llama-text-embed-v2 model
+                    dimension=384,  # Dimension for all-MiniLM-L6-v2 model
                     metric="cosine",
                     spec={"serverless": {"cloud": "aws", "region": "us-east-1"}}
                 )
@@ -95,9 +115,9 @@ def check_huggingface_api():
 # Store embeddings in Pinecone
 def store_embeddings(text_chunks, url, session_id=None):
     try:
-        # Initialize embeddings model - updated to use a model with 1024 dimensions
+        # Initialize embeddings model - use a public model that's available
         embeddings = HuggingFaceEmbeddings(
-            model_name="llama-text-embed-v2",  # Using the llama model shown in your Pinecone dashboard
+            model_name="sentence-transformers/all-MiniLM-L6-v2",  # Public model that doesn't require special access
             model_kwargs={'device': 'cpu'}
         )
         
@@ -219,9 +239,9 @@ def embed_response(data, userQuery, url=None, session_id=None):
 def retrieve_from_pinecone(query, url=None, session_id=None):
     """Retrieve relevant context from Pinecone"""
     try:
-        # Initialize embeddings model - updated to use a model with 1024 dimensions
+        # Initialize embeddings model - use a public model that's available
         embeddings = HuggingFaceEmbeddings(
-            model_name="llama-text-embed-v2",  # Using the llama model shown in your Pinecone dashboard
+            model_name="sentence-transformers/all-MiniLM-L6-v2",  # Public model that doesn't require special access
             model_kwargs={'device': 'cpu'}
         )
         
