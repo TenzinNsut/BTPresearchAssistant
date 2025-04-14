@@ -47,8 +47,8 @@ def init_pinecone():
                 index_info = pc.describe_index(index_name)
                 if hasattr(index_info, 'dimension'):
                     current_dimension = index_info.dimension
-                    if current_dimension != 384:  # We need 384 for all-MiniLM-L6-v2
-                        logger.warning(f"Index has wrong dimension: {current_dimension}, needs 384. Will recreate.")
+                    if current_dimension != 768:  # We need 768 for jinaai/jina-embeddings-v2-base-en
+                        logger.warning(f"Index has wrong dimension: {current_dimension}, needs 768. Will recreate.")
                         need_recreate = True
                         # Delete the existing index
                         pc.delete_index(index_name)
@@ -65,7 +65,7 @@ def init_pinecone():
             try:
                 pc.create_index(
                     name=index_name,
-                    dimension=384,  # Dimension for all-MiniLM-L6-v2 model
+                    dimension=768,  # Dimension for jinaai/jina-embeddings-v2-base-en model
                     metric="cosine",
                     spec={"serverless": {"cloud": "aws", "region": "us-east-1"}}
                 )
@@ -115,9 +115,9 @@ def check_huggingface_api():
 # Store embeddings in Pinecone
 def store_embeddings(text_chunks, url, session_id=None):
     try:
-        # Initialize embeddings model - use a public model that's available
+        # Initialize embeddings model - use a powerful model with 768 dimensions
         embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",  # Public model that doesn't require special access
+            model_name="jinaai/jina-embeddings-v2-base-en",  # High-quality 768-dimension model
             model_kwargs={'device': 'cpu'}
         )
         
@@ -239,9 +239,9 @@ def embed_response(data, userQuery, url=None, session_id=None):
 def retrieve_from_pinecone(query, url=None, session_id=None):
     """Retrieve relevant context from Pinecone"""
     try:
-        # Initialize embeddings model - use a public model that's available
+        # Initialize embeddings model - use a powerful model with 768 dimensions
         embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",  # Public model that doesn't require special access
+            model_name="jinaai/jina-embeddings-v2-base-en",  # High-quality 768-dimension model 
             model_kwargs={'device': 'cpu'}
         )
         
