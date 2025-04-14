@@ -506,7 +506,7 @@ def chat():
                 logger.info(f"Using cached URL data for session {session_id}")
                 result = embed_response(sessionStoredData, userQuery, userUrl, session_id)
                 return result
-            
+
             # Otherwise fetch data
             data = store_data(userUrl)
             logger.info(f"Scraped data length: {len(data) if data else 0}")
@@ -545,7 +545,7 @@ def chat():
                 logger.warning("Empty result returned from embed_response")
                 return "I processed the paper but couldn't generate a specific answer. Could you ask in a different way?"
 
-        return result
+            return result
 
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
