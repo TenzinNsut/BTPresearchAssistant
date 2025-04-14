@@ -567,7 +567,26 @@ def cleanup():
         logger.error(f"Error during cleanup: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+# Add a health check endpoint for Render
+@app.route('/health')
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Check Pinecone connection
+        pinecone_connected = init_pinecone()
+        global PINECONE_INITIALIZED
+        PINECONE_INITIALIZED = pinecone_connected
+        
+        return jsonify({
+            "status": "healthy",
+            "pinecone_connected": pinecone_connected,
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
 if __name__ == '__main__':
     # Get port from environment variable for cloud deployment
-    port = int(os.environ.get("PORT", 8080))
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port, debug=False) 
