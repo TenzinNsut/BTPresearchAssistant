@@ -1,0 +1,24 @@
+app = "research-assistant"
+primary_region = "iad" # Change to your preferred region (this is US East)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[mounts]
+  source = "research_data"
+  destination = "/app/uploads"
+
+[env]
+  PORT = "8080"
+
+[http_service.concurrency]
+  type = "connections"
+  hard_limit = 500
+  soft_limit = 250 
