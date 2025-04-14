@@ -26,7 +26,10 @@ ALLOWED_EXTENSIONS = {'pdf'}
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-app = Flask(__name__)
+app = Flask(__name__, 
+           static_folder='static',
+           static_url_path='/static',
+           template_folder='templates')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
 

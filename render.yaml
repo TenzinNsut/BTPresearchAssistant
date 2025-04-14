@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: research-assistant
+    env: python
+    buildCommand: pip install -r requirements.txt && ./build.sh
+    startCommand: gunicorn main:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+    autoDeploy: true 
