@@ -47,8 +47,8 @@ def init_pinecone():
                 index_info = pc.describe_index(index_name)
                 if hasattr(index_info, 'dimension'):
                     current_dimension = index_info.dimension
-                    if current_dimension != 768:  # We need 768 for jinaai/jina-embeddings-v2-base-en
-                        logger.warning(f"Index has wrong dimension: {current_dimension}, needs 768. Will recreate.")
+                    if current_dimension != 1024:  # We need 1024 for Mistral-Embed
+                        logger.warning(f"Index has wrong dimension: {current_dimension}, needs 1024. Will recreate.")
                         need_recreate = True
                         # Delete the existing index
                         pc.delete_index(index_name)
@@ -65,7 +65,7 @@ def init_pinecone():
             try:
                 pc.create_index(
                     name=index_name,
-                    dimension=768,  # Dimension for jinaai/jina-embeddings-v2-base-en model
+                    dimension=1024,  # Dimension for Mistral-Embed model
                     metric="cosine",
                     spec={"serverless": {"cloud": "aws", "region": "us-east-1"}}
                 )
@@ -117,7 +117,7 @@ def store_embeddings(text_chunks, url, session_id=None):
     try:
         # Initialize embeddings model - use a powerful model with 768 dimensions
         embeddings = HuggingFaceEmbeddings(
-            model_name="jinaai/jina-embeddings-v2-base-en",  # High-quality 768-dimension model
+            model_name="mistralai/Mistral-Embed",  # High-quality embedding model
             model_kwargs={'device': 'cpu'}
         )
         
@@ -241,7 +241,7 @@ def retrieve_from_pinecone(query, url=None, session_id=None):
     try:
         # Initialize embeddings model - use a powerful model with 768 dimensions
         embeddings = HuggingFaceEmbeddings(
-            model_name="jinaai/jina-embeddings-v2-base-en",  # High-quality 768-dimension model 
+            model_name="mistralai/Mistral-Embed",  # High-quality embedding model
             model_kwargs={'device': 'cpu'}
         )
         
