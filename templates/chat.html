@@ -456,6 +456,28 @@
       white-space: nowrap;
       border-width: 0;
     }
+
+    .url-note {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+      font-style: italic;
+    }
+
+    .file-limit-note {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+      font-style: italic;
+    }
+
+    .dark .url-note {
+      color: var(--text-secondary);
+    }
+
+    .dark .file-limit-note {
+      color: var(--text-secondary);
+    }
   </style>
 
 </head>
@@ -481,6 +503,7 @@
         <div class="input-group">
           <label for="pdfFile">Choose a PDF file (1 per session)</label>
           <input type="file" id="pdfFile" accept=".pdf">
+          <p class="file-limit-note">Maximum file size: 16MB</p>
         </div>
         <button class="submit-btn" id="uploadPdfBtn">Upload</button>
         
@@ -905,6 +928,13 @@
       
       if (!file) {
         appendSystemMessage("Please select a PDF file to upload.");
+        return;
+      }
+      
+      // Check file size (16MB = 16 * 1024 * 1024 bytes)
+      const maxSize = 16 * 1024 * 1024; // 16MB in bytes
+      if (file.size > maxSize) {
+        appendSystemMessage("File is too large. Maximum size is 16MB.");
         return;
       }
       

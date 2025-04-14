@@ -120,6 +120,12 @@ if PINECONE_INITIALIZED:
 else:
     logger.warning("Failed to initialize Pinecone connection on startup")
 
+# Direct routes to static files
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Explicit route to serve static files"""
+    return send_from_directory('static', filename)
+
 @app.route("/")
 def index():
     return render_template("index.html")
