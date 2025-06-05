@@ -2,6 +2,7 @@
 
 An AI-powered tool designed to help researchers extract insights from academic papers. This application allows users to upload PDFs or provide URLs to research papers, then ask specific questions about the content.
 
+https://github.com/user-attachments/assets/617106b1-0854-4802-aa2d-e4cad6e8d33e
 ![Research Assistant Interface](https://kstatic.googleusercontent.com/files/202018a3b69e60845af5a9903c7bf87010a2e2e8d987bd0fef5a598c0ee2b4345721a4c549a4a8039ff3a3dfd85239de3d6735b9956ff60f525b72e36c377164)
 
 ## Features
